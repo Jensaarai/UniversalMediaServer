@@ -298,6 +298,17 @@ public class MapFile extends DLNAResource {
 			}
 		}
 		
+		// Check if any of our previously empty folders now have content
+		boolean emptyFolderNowNotEmpty = false;
+		if (emptyFoldersToRescan != null) {			
+			for (File emptyFile : emptyFoldersToRescan) {
+				if (FileUtil.isFolderRelevant(emptyFile, configuration)) {
+					emptyFolderNowNotEmpty = true;
+					break;
+				}
+			}			
+		}
+		
 		/*
 		Checking !emptyFoldersToRescan.isEmpty() (or configuration.isHideEmptyFolders()) will cause the refresh to fire, but unfortunately it seems doing so
 		causes this refresh to happen too often or in a way the DLNA server doesn't like (the path that's followed for the multiple refreshes is the if (forced) 
@@ -323,7 +334,7 @@ public class MapFile extends DLNAResource {
 		  - file added to test3 will play
 		  - <file2>.mp4 will not play (The content cannot be played 800288E1)
 		 */
-		return (getLastRefreshTime() < modified) || (configuration.getSortMethod(getPath()) == UMSUtils.SORT_RANDOM || (emptyFoldersToRescan != null && !emptyFoldersToRescan.isEmpty()));
+		return (getLastRefreshTime() < modified) || (configuration.getSortMethod(getPath()) == UMSUtils.SORT_RANDOM || emptyFolderNowNotEmpty /* (emptyFoldersToRescan != null && !emptyFoldersToRescan.isEmpty()) */);
 	}
 
 	@Override
