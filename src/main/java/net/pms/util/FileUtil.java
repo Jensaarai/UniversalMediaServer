@@ -986,6 +986,7 @@ public class FileUtil {
 
 	public static boolean isFileRelevant(File f, PmsConfiguration configuration) {
 		String fileName = f.getName().toLowerCase();
+		System.out.println("isFileRelevant looking at filename " + fileName);
 		if (
 			(
 				configuration.isArchiveBrowsing() &&
@@ -1015,6 +1016,7 @@ public class FileUtil {
 
 	public static boolean isFolderRelevant(File f, PmsConfiguration configuration, Set<String> ignoreFiles) {
 		if (f.isDirectory() && configuration.isHideEmptyFolders()) {
+			System.out.println("isFolderRelevant looking at folder " + f.getName());
 			File[] children = f.listFiles();
 
 			/**
@@ -1027,6 +1029,7 @@ public class FileUtil {
 				LOGGER.warn("Can't list files in non-readable directory: {}", f.getAbsolutePath());
 			} else {
 				for (File child : children) {
+					System.out.println("isFolderRelevant looking at file " + child.getName());
 					if (ignoreFiles.contains(child.getAbsolutePath())) {
 						continue;
 					}

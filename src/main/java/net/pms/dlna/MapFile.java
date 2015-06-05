@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 public class MapFile extends DLNAResource {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MapFile.class);
 	private List<File> discoverable;
+	private List<File> emptyFoldersToRescan;
 	private String forcedName;
 
 	private ArrayList<RealFile> searchList;
@@ -98,6 +99,20 @@ public class MapFile extends DLNAResource {
 					/* Optionally ignore empty directories */
 					if (f.isDirectory() && configuration.isHideEmptyFolders() && !FileUtil.isFolderRelevant(f, configuration)) {
 						LOGGER.debug("Ignoring empty/non-relevant directory: " + f.getName());
+						System.out.println("manageFile - Ignoring empty/non-relevant directory: " + f.getName());
+						// Keep track of the fact that we have empty folders, so when we're asked if we should refresh,
+						// when this list contains something we can say "yes" to cause a re-scan of the file structure and see if
+						// they're still empty
+						if (emptyFoldersToRescan == null) {
+							emptyFoldersToRescan = new ArrayList<>();
+						}
+						if (!emptyFoldersToRescan.contains(f)) {
+							emptyFoldersToRescan.add(f);
+							System.out.println("manageFile - empty folders list contents:");
+							for (File emptyFile : emptyFoldersToRescan) {
+								System.out.println("\tmanageFile - " + emptyFile.getName());
+							}	
+						}									
 					} else { // Otherwise add the file
 						RealFile rf = new RealFile(f);
 						if (searchList != null) {
@@ -207,6 +222,20 @@ public class MapFile extends DLNAResource {
 				}
 				if (f.isDirectory() && configuration.isHideEmptyFolders() && !FileUtil.isFolderRelevant(f, configuration)) {
 					LOGGER.debug("Ignoring empty/non-relevant directory: " + f.getName());
+					System.out.println("discoverChildren - Ignoring empty/non-relevant directory: " + f.getName());
+					// Keep track of the fact that we have empty folders, so when we're asked if we should refresh,
+					// when this list contains something we can say "yes" to cause a re-scan of the file structure and see if
+					// they're still empty
+					if (emptyFoldersToRescan == null) {
+						emptyFoldersToRescan = new ArrayList<>();
+					}
+					if (!emptyFoldersToRescan.contains(f)) {
+						emptyFoldersToRescan.add(f);
+						System.out.println("discoverChildren - empty folders list contents:");
+						for (File emptyFile : emptyFoldersToRescan) {
+							System.out.println("\tdiscoverChildren - " + emptyFile.getName());
+						}
+					}				
 					continue;
 				}
 
@@ -268,8 +297,33 @@ public class MapFile extends DLNAResource {
 				modified = Math.max(modified, f.lastModified());
 			}
 		}
+		
+		/*
+		Checking !emptyFoldersToRescan.isEmpty() (or configuration.isHideEmptyFolders()) will cause the refresh to fire, but unfortunately it seems doing so
+		causes this refresh to happen too often or in a way the DLNA server doesn't like (the path that's followed for the multiple refreshes is the if (forced) 
+		path in DLNAResource.discoverWithRenderer())
+		
+		Example behavior/folder structure:
 
-		return (getLastRefreshTime() < modified) || (configuration.getSortMethod(getPath()) == UMSUtils.SORT_RANDOM);
+		test
+		  \test3 <initially empty>
+		  \test2
+		    <file2>.mp4
+		    \test4 <initially empty>
+		  <file1>.mp4
+		
+		Initially:
+		  - Refresh is called a few times, and test3 is not shown
+		  - test2 shows "there are no titles"
+		  - <file1>.mp4 will not play (The content cannot be played 800288E1)
+		
+		Add a file to test3, back out to root and re-select test
+		  - Refresh is called a few times and test3 folder is shown
+		  - <file1>.mp4 will play
+		  - file added to test3 will play
+		  - <file2>.mp4 will not play (The content cannot be played 800288E1)
+		 */
+		return (getLastRefreshTime() < modified) || (configuration.getSortMethod(getPath()) == UMSUtils.SORT_RANDOM || (emptyFoldersToRescan != null && !emptyFoldersToRescan.isEmpty()));
 	}
 
 	@Override
@@ -329,6 +383,15 @@ public class MapFile extends DLNAResource {
 			addChild(new MapFile(f));
 		} */
 		getChildren().clear();
+		if (emptyFoldersToRescan != null) {
+			System.out.println("doRefreshChildren called; nulling out emptyFoldersToRescan. Previous contents:");
+			for (File emptyFile : emptyFoldersToRescan) {
+				System.out.println("\tdoRefreshChildren - " + emptyFile.getName());
+			}
+			emptyFoldersToRescan = null; // Since we're re-scanning, reset this list so it can be built again			
+		} else {
+			System.out.println("doRefreshChildren called and emptyFoldersToRescan was already null.");
+		}
 		discoverable = null;
 		discoverChildren(str);
 		analyzeChildren(-1);

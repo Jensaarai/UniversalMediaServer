@@ -1186,11 +1186,15 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 		} else {
 			// if forced, then call the old 'refreshChildren' method
 			LOGGER.trace("discover {} refresh forced: {}", getResourceId(), forced);
+			System.out.println("discover - name: " + getName() + " refresh forced: " + forced);
 			/*if (forced && shouldRefresh(searchStr)) {
 				doRefreshChildren(searchStr);
 				notifyRefresh();
 			} */
 			if (forced) {
+				// This will follow the same codepath as the else below in the case of MapFile, because
+				// refreshChildren calls shouldRefresh -> isRefreshNeeded -> doRefreshChildren, which is what happens below
+				// (refreshChildren is not overriden in MapFile) 
 				if (refreshChildren(searchStr)) {
 					notifyRefresh();
 				}
